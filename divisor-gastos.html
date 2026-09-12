@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Divisor de Gastos - Party Split</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: { 50:'#fdf4ff',100:'#fae8ff',200:'#f5d0fe',300:'#f0abfc',400:'#e879f9',500:'#d946ef',600:'#c026d3',700:'#a21caf',800:'#86198f',900:'#701a75' },
+                        surface: { 50:'#fafafa',100:'#f4f4f5',200:'#e4e4e7',300:'#d4d4d8',400:'#a1a1aa',500:'#71717a',600:'#52525b',700:'#3f3f46',800:'#27272a',900:'#18181b' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; }
+        .fade-in { animation: fadeIn 0.4s ease-out; }
+        .slide-up { animation: slideUp 0.4s ease-out; }
+        .scale-in { animation: scaleIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+        @keyframes slideUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes scaleIn { from { opacity:0; transform:scale(0.9); } to { opacity:1; transform:scale(1); } }
+        .glow { box-shadow: 0 0 40px rgba(217,70,239,0.15); }
+        .card-hover { transition: all 0.3s ease; }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(0,0,0,0.1); }
+        .btn-gradient { background: linear-gradient(135deg, #d946ef 0%, #8b5cf6 50%, #3b82f6 100%); }
+        .btn-gradient:hover { background: linear-gradient(135deg, #c026d3 0%, #7c3aed 50%, #2563eb 100%); }
+        .bg-mesh { background-color: #fafafa; background-image: radial-gradient(at 40% 20%, rgba(217,70,239,0.08) 0px, transparent 50%), radial-gradient(at 80% 0%, rgba(139,92,246,0.06) 0px, transparent 50%), radial-gradient(at 0% 50%, rgba(59,130,246,0.05) 0px, transparent 50%); }
+        .tag-drink { background: linear-gradient(135deg, #06b6d4, #3b82f6); }
+        .tag-food { background: linear-gradient(135deg, #f97316, #ef4444); }
+        .tag-other { background: linear-gradient(135deg, #8b5cf6, #d946ef); }
+        ::-webkit-scrollbar { width:6px; }
+        ::-webkit-scrollbar-track { background:transparent; }
+        ::-webkit-scrollbar-thumb { background:#d4d4d8; border-radius:3px; }
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+        .pulse-dot { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+
+        /* ── Mobile Improvements ── */
+        @media (max-width: 640px) {
+            .step-indicator { padding: 6px 10px !important; font-size: 12px !important; gap: 4px !important; }
+            .step-indicator span:first-child { width: 20px; height: 20px; font-size: 10px; }
+            main { padding-left: 12px !important; padding-right: 12px !important; }
+        }
+        @media (max-width: 400px) {
+            .step-indicator .step-label { display: none !important; }
+            .step-indicator { padding: 6px 8px !important; }
+        }
+
+        /* Undo toast */
+        #undo-toast {
+            position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+            background: #18181b; color: white; padding: 12px 16px; border-radius: 14px;
+            display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 500;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.25); opacity: 0; pointer-events: none;
+            visibility: hidden;
+            transition: all 0.35s ease; z-index: 60; max-width: calc(100vw - 32px);
+        }
+        #undo-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; visibility: visible; }
+        #undo-toast button {
+            background: linear-gradient(135deg, #d946ef, #8b5cf6); color: white;
+            border: none; padding: 6px 14px; border-radius: 8px; font-size: 12px;
+            font-weight: 700; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+            transition: all 0.2s;
+        }
+        #undo-toast button:hover { filter: brightness(1.1); }
+        #undo-toast button:active { transform: scale(0.95); }
+
+        /* Mobile-friendly delete buttons */
+        @media (max-width: 640px) {
+            .item-delete-btn { width: 36px !important; height: 36px !important; }
+            .person-delete-btn { width: 36px !important; height: 36px !important; }
+        }
+
+        /* Responsive grids */
+        @media (max-width: 480px) {
+            .cat-btn { padding: 10px 0 !important; font-size: 11px !important; }
+            .quick-add-grid { gap: 6px !important; }
+            .quick-add-grid button { padding: 10px 8px !important; font-size: 11px !important; }
+        }
+    </style>
+</head>
+<body class="bg-mesh min-h-screen">
+
+    <!-- HEADER -->
+    <header class="sticky top-0 z-50 backdrop-blur-xl bg-white/70 border-b border-white/20">
+        <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl btn-gradient flex items-center justify-center text-white font-bold text-lg shadow-lg">P</div>
+                <div>
+                    <h1 class="text-lg font-bold text-surface-900">Party Split</h1>
+                    <p class="text-xs text-surface-400">Divide gastos al instante</p>
+                </div>
+            </div>
+            <div id="header-badge" class="hidden px-3 py-1 rounded-full bg-brand-100 text-brand-700 text-xs font-semibold">
+                <span class="pulse-dot inline-block w-2 h-2 bg-brand-500 rounded-full mr-1"></span>
+                Sesión activa
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN -->
+    <main class="max-w-5xl mx-auto px-4 py-6 pb-24">
+
+        <!-- STEP INDICATOR -->
+        <div id="steps" class="flex items-center justify-center gap-2 mb-8 fade-in">
+            <button onclick="goToStep(1)" id="step-btn-1" class="step-indicator active flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all bg-surface-900 text-white">
+                <span class="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs">1</span>
+                <span class="hidden sm:inline">Personas</span>
+            </button>
+            <div class="w-8 h-0.5 bg-surface-200 rounded"></div>
+            <button onclick="goToStep(2)" id="step-btn-2" class="step-indicator flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all bg-surface-100 text-surface-400">
+                <span class="w-6 h-6 rounded-full bg-surface-200 flex items-center justify-center text-xs">2</span>
+                <span class="hidden sm:inline">Pedidos</span>
+            </button>
+            <div class="w-8 h-0.5 bg-surface-200 rounded"></div>
+            <button onclick="goToStep(3)" id="step-btn-3" class="step-indicator flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all bg-surface-100 text-surface-400">
+                <span class="w-6 h-6 rounded-full bg-surface-200 flex items-center justify-center text-xs">3</span>
+                <span class="hidden sm:inline">Resultado</span>
+            </button>
+        </div>
+
+        <!-- STEP 1: PERSONAS -->
+        <section id="step-1" class="slide-up">
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold text-surface-900 mb-1">¿Quiénes van a participar?</h2>
+                <p class="text-surface-400 text-sm">Añade todas las personas de la grupo</p>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-surface-100 p-5 mb-4 card-hover">
+                <div class="flex gap-2">
+                    <div class="flex-1 relative">
+                        <input type="text" id="person-input" placeholder="Nombre de la persona..."
+                            class="w-full px-4 py-3 rounded-xl border border-surface-200 focus:border-brand-400 focus:ring-2 focus:ring-brand-100 outline-none transition-all text-sm"
+                            onkeydown="if(event.key==='Enter') addPerson()">
+                        <div class="absolute right-3 top-1/2 -translate-y-1/2 text-surface-300">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+                        </div>
+                    </div>
+                    <button onclick="addPerson()" class="btn-gradient text-white px-5 py-3 rounded-xl font-semibold text-sm transition-all hover:shadow-lg active:scale-95 flex items-center gap-2">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+                        Añadir
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick add -->
+            <div class="bg-white rounded-2xl shadow-sm border border-surface-100 p-5 mb-4 card-hover">
+                <p class="text-xs font-semibold text-surface-400 uppercase tracking-wider mb-3">Añadir rápido</p>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="quickAddPeople(['Monica','Fer','Jacobo','Álvaro','Laura','Karima'])" class="px-3 py-1.5 rounded-lg bg-surface-100 text-surface-600 text-xs font-medium hover:bg-surface-200 transition-all">
+                        Grupo estándar
+                    </button>
+                    <button onclick="quickAddPeople(['Monica','Fer','Jacobo','Álvaro','Laura','Karima','Alejandro','Angel','Nacho','Yamila'])" class="px-3 py-1.5 rounded-lg bg-surface-100 text-surface-600 text-xs font-medium hover:bg-surface-200 transition-all">
+                        Grupo grande
+                    </button>
+                </div>
+            </div>
+
+            <!-- People list -->
+            <div id="people-list" class="space-y-2 mb-6"></div>
+
+            <div id="people-count" class="hidden text-center">
+                <p class="text-sm text-surface-400"><span id="count-num" class="font-bold text-brand-600">0</span> persona(s) en la sesión</p>
+            </div>
+
+            <button onclick="goToStep(2)" id="next-to-orders" class="hidden w-full btn-gradient text-white py-3.5 rounded-xl font-semibold transition-all hover:shadow-lg active:scale-[0.98] mt-4">
+                Continuar a Pedidos →
+            </button>
+        </section>
+
+        <!-- STEP 2: PEDIDOS -->
+        <section id="step-2" class="hidden">
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold text-surface-900 mb-1">¿Qué han consumido?</h2>
+                <p class="text-surface-400 text-sm">Selecciona persona y añade sus consumos</p>
+            </div>
+
+            <!-- Add more people during session -->
+            <div class="bg-white rounded-2xl shadow-sm border border-surface-100 p-4 mb-4 card-hover">
+                <div class="flex items-center gap-2 mb-2">
+                    <svg width="16" height="16" fill="none" stroke="#d946ef" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+                    <span class="text-xs font-semibold text-surface-500">Añadir persona a la sesión</span>
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" id="add-person-step2" placeholder="Nombre..."
+                        class="flex-1 px-3 py-2 rounded-lg border border-surface-200 focus:border-brand-400 focus:ring-2 focus:ring-brand-100 outline-none transition-all text-sm"
+                        onkeydown="if(event.key==='Enter') addPersonDuringSession()">
+                    <button onclick="addPersonDuringSession()" class="px-4 py-2 rounded-lg bg-brand-50 text-brand-600 text-sm font-semibold hover:bg-brand-100 transition-all">
+                        + Añadir
+                    </button>
+                </div>
+            </div>
+
+            <!-- Person selector -->
+            <div class="bg-white rounded-2xl shadow-sm border border-surface-100 p-5 mb-4 card-hover">
+                <p class="text-xs font-semibold text-surface-400 uppercase tracking-wider mb-3">Selecciona persona</p>
+                <div id="person-pills" class="flex flex-wrap gap-2"></div>
+            </div>
+
+            <!-- Selected person orders -->
+            <div id="orders-section" class="hidden">
+                <div class="bg-white rounded-2xl shadow-sm border border-surface-100 p-5 mb-4 card-hover">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-2">
+                            <div id="selected-person-avatar" class="w-8 h-8 rounded-full btn-gradient flex items-center justify-center text-white text-sm font-bold"></div>
+                            <span id="selected-person-name" class="font-semibold text-surface-900"></span>
+                        </div>
+                        <div id="person-total-badge" class="px-3 py-1 rounded-full bg-surface-100 text-surface-600 text-xs font-semibold">
+                            Total: €0.00
+                        </div>
+                    </div>
+
+                    <!-- Didn't eat toggle -->
+                    <div class="flex items-center justify-between gap-3 p-3 rounded-xl bg-orange-50 border border-orange-100 mb-4">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <svg width="18" height="18" fill="none" stroke="#f97316" stroke-width="2" viewBox="0 0 24 24" class="flex-shrink-0"><path d="M18 8h1a4 4 0 010 8h-1M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8zM6 1v3M10 1v3M14 1v3"/></svg>
+                            <div class="min-w-0">
+                                <span class="text-sm font-medium text-orange-700">No comió</span>
+                                <span class="hidden xs:inline text-xs text-orange-400 sm:inline">(no paga comida compartida)</span>
+                            </div>
+                        </div>
+                        <button id="didnt-eat-btn" onclick="toggleDidntEat()" class="w-12 h-6 rounded-full bg-orange-200 transition-all relative flex-shrink-0">
+                            <div id="didnt-eat-dot" class="w-5 h-5 rounded-full bg-white shadow absolute top-0.5 left-0.5 transition-all"></div>
+                        </button>
+                    </div>
+
+                    <!-- Add item form -->
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-xs font-semibold text-surface-400 mb-1 block">Nombre del producto</label>
+                            <input type="text" id="item-name" placeholder="Ej: Cerveza, Nachos, Hamburguesa..."
+                                class="w-full px-3 py-2.5 rounded-xl border border-surface-200 focus:border-brand-400 focus:ring-2 focus:ring-brand-100 outline-none transition-all text-sm">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-xs font-semibold text-surface-400 mb-1 block">Precio (€)</label>
+                                <input type="number" id="item-price" placeholder="0.00" step="0.01" min="0"
+                                    class="w-full px-3 py-2.5 rounded-xl border border-surface-200 focus:border-brand-400 focus:ring-2 focus:ring-brand-100 outline-none transition-all text-sm">
+                            </div>
+                            <div>
+                                <label class="text-xs font-semibold text-surface-400 mb-1 block">Cantidad</label>
+                                <input type="number" id="item-qty" placeholder="1" min="1" value="1"
+                                    class="w-full px-3 py-2.5 rounded-xl border border-surface-200 focus:border-brand-400 focus:ring-2 focus:ring-brand-100 outline-none transition-all text-sm">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-surface-400 mb-2 block">Categoría</label>
+                            <div class="flex gap-2">
+                                <button onclick="selectCategory('drink')" id="cat-drink" class="cat-btn flex-1 py-2 rounded-xl text-xs font-semibold transition-all bg-cyan-50 text-cyan-600 border-2 border-cyan-200">
+                                    🍺 Bebida
+                                </button>
+                                <button onclick="selectCategory('food')" id="cat-food" class="cat-btn flex-1 py-2 rounded-xl text-xs font-semibold transition-all bg-orange-50 text-orange-600 border-2 border-orange-200">
+                                    🍽️ Comida
+                                </button>
+                                <button onclick="selectCategory('other')" id="cat-other" class="cat-btn flex-1 py-2 rounded-xl text-xs font-semibold transition-all bg-purple-50 text-purple-600 border-2 border-purple-200">
+                                    📦 Otro
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-surface-400 mb-2 block">¿Compartido entre?</label>
+                            <div id="shared-with" class="flex flex-wrap gap-1.5"></div>
+                        </div>
+                        <button onclick="addItem()" class="w-full py-3 rounded-xl btn-gradient text-white font-semibold text-sm transition-all hover:shadow-lg active:scale-[0.98]">
+                            Añadir producto
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Person's items list -->
+                <div id="person-items" class="space-y-2 mb-4"></div>
+
+                <!-- Quick add buttons -->
+                <div class="bg-white rounded-2xl shadow-sm border border-surface-100 p-4 mb-4 card-hover">
+                    <p class="text-xs font-semibold text-surface-400 uppercase tracking-wider mb-3">Añadir rápido</p>
+                    <div class="flex flex-wrap gap-2 quick-add-grid">
+                        <button onclick="quickAddItem('Cerveza', 3.50, 'drink')" class="px-3 py-2 rounded-xl bg-cyan-50 text-cyan-700 text-xs font-medium hover:bg-cyan-100 transition-all border border-cyan-100 flex-1 sm:flex-none">
+                            🍺 Tercio €3.50
+                        </button>
+                         <button onclick="quickAddItem('Doble' , 2.80, 'drink')" class="px-3 py-2 rounded-xl bg-orange-50 text-orange-700 text-xs font-medium hover:bg-orange-100 transition-all border border-orange-100 flex-1 sm:flex-none">
+                           🍺  Doble €2.80
+                        </button>
+                        <button onclick="quickAddItem('Refresco', 3.50, 'drink')" class="px-3 py-2 rounded-xl bg-cyan-50 text-cyan-700 text-xs font-medium hover:bg-cyan-100 transition-all border border-cyan-100 flex-1 sm:flex-none">
+                            🥤 Refresco €3.50
+                        </button>
+                        <button onclick="quickAddItem('Agua', 3.00, 'drink')" class="px-3 py-2 rounded-xl bg-cyan-50 text-cyan-700 text-xs font-medium hover:bg-cyan-100 transition-all border border-cyan-100 flex-1 sm:flex-none">
+                            💧 Agua €3.00
+                        </button>
+                        <button onclick="quickAddItem('Hamburguesa', 8.00, 'food')" class="px-3 py-2 rounded-xl bg-orange-50 text-orange-700 text-xs font-medium hover:bg-orange-100 transition-all border border-orange-100 flex-1 sm:flex-none">
+                            🍔 Hamburguesa €8.00
+                        </button>
+                        <button onclick="quickAddItem('Nachos', 6.00, 'food')" class="px-3 py-2 rounded-xl bg-orange-50 text-orange-700 text-xs font-medium hover:bg-orange-100 transition-all border border-orange-100 flex-1 sm:flex-none">
+                            🧀 Nachos €6.00
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Bebidas para todos -->
+                <div class="bg-gradient-to-br from-cyan-50 to-blue-50 rounded-2xl shadow-sm border border-cyan-100 p-4 mb-4 card-hover">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-7 h-7 rounded-lg bg-cyan-100 flex items-center justify-center">
+                            <svg width="16" height="16" fill="none" stroke="#0891b2" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+                        </div>
+                        <p class="text-xs font-bold text-cyan-700 uppercase tracking-wider">Bebidas para todos</p>
+                    </div>
+                    <p class="text-xs text-cyan-600 mb-3">Añade la misma bebida a todas las personas de golpe</p>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <button onclick="addDrinkToAll('Tercio', 3.50)" class="flex flex-col items-center gap-1 py-3 rounded-xl bg-white border border-cyan-200 text-cyan-700 text-xs font-semibold hover:bg-cyan-100 hover:border-cyan-300 transition-all active:scale-95">
+                            <span class="text-xl">🍺</span>
+                            Tercio
+                            <span class="text-[10px] text-cyan-500 font-normal">€3.50 c/u</span>
+                        </button>
+                        <button onclick="addDrinkToAll('Refresco', 3.50)" class="flex flex-col items-center gap-1 py-3 rounded-xl bg-white border border-cyan-200 text-cyan-700 text-xs font-semibold hover:bg-cyan-100 hover:border-cyan-300 transition-all active:scale-95">
+                            <span class="text-xl">🥤</span>
+                            Refresco
+                            <span class="text-[10px] text-cyan-500 font-normal">€1.50 c/u</span>
+                        </button>
+                        <button onclick="addDrinkToAll('Agua', 3.00)" class="flex flex-col items-center gap-1 py-3 rounded-xl bg-white border border-cyan-200 text-cyan-700 text-xs font-semibold hover:bg-cyan-100 hover:border-cyan-300 transition-all active:scale-95">
+                            <span class="text-xl">💧</span>
+                            Agua
+                            <span class="text-[10px] text-cyan-500 font-normal">€1.00 c/u</span>
+                        </button>
+                        <button onclick="promptDrinkToAll()" class="flex flex-col items-center gap-1 py-3 rounded-xl bg-white border-2 border-dashed border-cyan-300 text-cyan-600 text-xs font-semibold hover:bg-cyan-100 hover:border-cyan-400 transition-all active:scale-95">
+                            <span class="text-xl">✏️</span>
+                            Personalizar
+                            <span class="text-[10px] text-cyan-400 font-normal">Otro precio</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-3 mt-6">
+                <button onclick="goToStep(1)" class="flex-1 py-3.5 rounded-xl border-2 border-surface-200 text-surface-600 font-semibold text-sm hover:bg-surface-50 transition-all active:scale-[0.98]">
+                    ← Volver
+                </button>
+                <button onclick="goToStep(3)" class="flex-1 btn-gradient text-white py-3.5 rounded-xl font-semibold text-sm transition-all hover:shadow-lg active:scale-[0.98]">
+                    Ver Resultados →
+                </button>
+            </div>
+        </section>
+
+        <!-- STEP 3: RESULTADOS -->
+        <section id="step-3" class="hidden">
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold text-surface-900 mb-1">¡Resultados!</h2>
+                <p class="text-surface-400 text-sm">Resumen y reparto del gasto</p>
+            </div>
+
+            <!-- Summary cards -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                <div class="bg-white rounded-2xl p-4 border border-surface-100 shadow-sm text-center card-hover">
+                    <p class="text-2xl font-bold text-surface-900" id="res-total">€0</p>
+                    <p class="text-xs text-surface-400 mt-1">Total general</p>
+                </div>
+                <div class="bg-white rounded-2xl p-4 border border-surface-100 shadow-sm text-center card-hover">
+                    <p class="text-2xl font-bold text-brand-600" id="res-people">0</p>
+                    <p class="text-xs text-surface-400 mt-1">Personas</p>
+                </div>
+                <div class="bg-white rounded-2xl p-4 border border-surface-100 shadow-sm text-center card-hover">
+                    <p class="text-2xl font-bold text-cyan-600" id="res-drinks">€0</p>
+                    <p class="text-xs text-surface-400 mt-1">Bebidas</p>
+                </div>
+                <div class="bg-white rounded-2xl p-4 border border-surface-100 shadow-sm text-center card-hover">
+                    <p class="text-2xl font-bold text-orange-600" id="res-food">€0</p>
+                    <p class="text-xs text-surface-400 mt-1">Comida</p>
+                </div>
+            </div>
+
+            <!-- Per person breakdown -->
+            <div id="results-list" class="space-y-3 mb-6"></div>
+
+            <!-- Transfers -->
+            <div class="bg-white rounded-2xl shadow-sm border border-surface-100 p-5 mb-6 card-hover">
+                <div class="flex items-center gap-2 mb-4">
+                    <div class="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
+                        <svg width="18" height="18" fill="none" stroke="#16a34a" stroke-width="2" viewBox="0 0 24 24"><path d="M7 17l9.2-9.2M17 17V7H7"/></svg>
+                    </div>
+                    <h3 class="font-bold text-surface-900">Transferencias sugeridas</h3>
+                </div>
+                <div id="transfers-list" class="space-y-2"></div>
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="goToStep(2)" class="flex-1 py-3.5 rounded-xl border-2 border-surface-200 text-surface-600 font-semibold text-sm hover:bg-surface-50 transition-all active:scale-[0.98]">
+                    ← Volver
+                </button>
+                <button onclick="resetAll()" class="flex-1 py-3.5 rounded-xl border-2 border-red-200 text-red-500 font-semibold text-sm hover:bg-red-50 transition-all active:scale-[0.98]">
+                    🔄 Nueva sesión
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Undo Toast -->
+    <div id="undo-toast">
+        <span id="undo-text">Producto añadido</span>
+        <button onclick="undoLastItem()">Deshacer</button>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 px-5 py-3 rounded-xl bg-surface-900 text-white text-sm font-medium shadow-2xl transition-all opacity-0 translate-y-4 pointer-events-none z-50">
+        <span id="toast-text"></span>
+    </div>
+
+    <script>
+        // ── STATE ──
+        let people = [];
+        let selectedPersonId = null;
+        let selectedCategory = 'drink';
+        let currentStep = 1;
+        let sharedMode = false;
+
+        // ── UTILS ──
+        const $ = id => document.getElementById(id);
+        const uid = () => Math.random().toString(36).slice(2, 9);
+        const fmt = n => '€' + n.toFixed(2);
+        const colors = ['#d946ef','#8b5cf6','#3b82f6','#06b6d4','#10b981','#f59e0b','#ef4444','#ec4899'];
+        const getAvatarColor = i => colors[i % colors.length];
+
+        function showToast(msg) {
+            const t = $('toast');
+            $('toast-text').textContent = msg;
+            t.classList.remove('opacity-0','translate-y-4');
+            t.classList.add('opacity-100','translate-y-0');
+            setTimeout(() => { t.classList.remove('opacity-100','translate-y-0'); t.classList.add('opacity-0','translate-y-4'); }, 2500);
+        }
+
+        // ── UNDO LAST ITEM ──
+        let undoLog = null;
+        let undoTimeout = null;
+
+        function showUndo(msg, callback) {
+            undoLog = callback;
+            $('undo-text').textContent = msg;
+            $('undo-toast').classList.add('show');
+            clearTimeout(undoTimeout);
+            undoTimeout = setTimeout(hideUndoToast, 4500);
+        }
+
+        function hideUndoToast() {
+            $('undo-toast').classList.remove('show');
+            undoLog = null;
+        }
+
+        function undoLastItem() {
+            if (undoLog) { undoLog(); undoLog = null; }
+            hideUndoToast();
+        }
+
+        // ── STEP NAVIGATION ──
+        function goToStep(n) {
+            if (n === 2 && people.length === 0) { showToast('Añade al menos una persona'); return; }
+            if (n === 3) { renderResults(); }
+            currentStep = n;
+            [1,2,3].forEach(s => {
+                $('step-'+s).classList.toggle('hidden', s !== n);
+                const btn = $('step-btn-'+s);
+                if (s === n) {
+                    btn.className = 'step-indicator active flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all bg-surface-900 text-white';
+                } else if (s < n) {
+                    btn.className = 'step-indicator flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all bg-brand-100 text-brand-700';
+                } else {
+                    btn.className = 'step-indicator flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all bg-surface-100 text-surface-400';
+                }
+            });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (n === 2) renderPersonPills();
+        }
+
+        // ── PEOPLE MANAGEMENT ──
+        function addPerson() {
+            const input = $('person-input');
+            const name = input.value.trim();
+            if (!name) { showToast('Escribe un nombre'); return; }
+            if (people.find(p => p.name.toLowerCase() === name.toLowerCase())) { showToast('Esa persona ya existe'); return; }
+            people.push({ id: uid(), name, items: [], didntEat: false });
+            input.value = '';
+            input.focus();
+            renderPeople();
+            showToast(name + ' añadido(a)');
+        }
+
+        function addPersonDuringSession() {
+            const input = $('add-person-step2');
+            const name = input.value.trim();
+            if (!name) { showToast('Escribe un nombre'); return; }
+            if (people.find(p => p.name.toLowerCase() === name.toLowerCase())) { showToast('Esa persona ya existe'); return; }
+            people.push({ id: uid(), name, items: [], didntEat: false });
+            input.value = '';
+            renderPeople();
+            renderPersonPills();
+            showToast(name + ' se unió a la sesión');
+        }
+
+        function quickAddPeople(names) {
+            names.forEach(n => {
+                if (!people.find(p => p.name.toLowerCase() === n.toLowerCase())) {
+                    people.push({ id: uid(), name: n, items: [], didntEat: false });
+                }
+            });
+            renderPeople();
+            showToast(names.length + ' personas añadidas');
+        }
+
+        function removePerson(id) {
+            people = people.filter(p => p.id !== id);
+            if (selectedPersonId === id) selectedPersonId = null;
+            renderPeople();
+            renderPersonPills();
+        }
+
+        function renderPeople() {
+            const container = $('people-list');
+            if (people.length === 0) {
+                container.innerHTML = '<div class="text-center py-8 text-surface-300"><svg class="mx-auto mb-3" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg><p class="text-sm">Añade personas para comenzar</p></div>';
+                $('people-count').classList.add('hidden');
+                $('next-to-orders').classList.add('hidden');
+                return;
+            }
+            container.innerHTML = people.map((p, i) => {
+                const color = getAvatarColor(i);
+                const total = p.items.reduce((s, it) => s + it.price * it.qty, 0);
+                return `<div class="flex items-center gap-3 bg-white rounded-xl border border-surface-100 p-3 shadow-sm slide-up">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style="background:${color}">${p.name.charAt(0).toUpperCase()}</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-semibold text-surface-900 text-sm truncate">${p.name}</p>
+                        <p class="text-xs text-surface-400">${p.items.length} producto(s) · ${fmt(total)}</p>
+                    </div>
+                    <button onclick="removePerson('${p.id}')" title="Quitar persona" aria-label="Quitar a ${p.name}" class="person-delete-btn w-9 h-9 rounded-xl flex items-center justify-center bg-red-50 text-red-400 border border-red-100 hover:text-red-500 hover:bg-red-100 transition-all flex-shrink-0 active:scale-90">
+                        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14M10 11v6M14 11v6"/></svg>
+                    </button>
+                </div>`;
+            }).join('');
+            $('people-count').classList.remove('hidden');
+            $('count-num').textContent = people.length;
+            $('next-to-orders').classList.remove('hidden');
+        }
+
+        // ── ORDERS ──
+        function renderPersonPills() {
+            $('person-pills').innerHTML = people.map((p, i) => {
+                const color = getAvatarColor(i);
+                const isSelected = p.id === selectedPersonId;
+                return `<button onclick="selectPerson('${p.id}')" class="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all ${isSelected ? 'bg-surface-900 text-white shadow-lg' : 'bg-surface-100 text-surface-600 hover:bg-surface-200'}">
+                    <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white" style="background:${color}">${p.name.charAt(0)}</span>
+                    ${p.name}
+                    ${p.items.length ? `<span class="text-xs ${isSelected ? 'bg-white/20' : 'bg-surface-200'} px-1.5 py-0.5 rounded-md">${p.items.length}</span>` : ''}
+                </button>`;
+            }).join('');
+        }
+
+        function selectPerson(id) {
+            selectedPersonId = id;
+            $('orders-section').classList.remove('hidden');
+            const person = people.find(p => p.id === id);
+            const idx = people.indexOf(person);
+            const color = getAvatarColor(idx);
+            $('selected-person-avatar').textContent = person.name.charAt(0).toUpperCase();
+            $('selected-person-avatar').style.background = color;
+            $('selected-person-name').textContent = person.name;
+
+            // Reset form
+            $('item-name').value = '';
+            $('item-price').value = '';
+            $('item-qty').value = '1';
+            selectCategory('drink');
+            renderPersonPills();
+            renderSharedWith();
+            renderPersonItems();
+        }
+
+        function selectCategory(cat) {
+            selectedCategory = cat;
+            document.querySelectorAll('.cat-btn').forEach(b => {
+                b.style.transform = '';
+                b.style.boxShadow = '';
+            });
+            const btn = $('cat-' + cat);
+            btn.style.transform = 'scale(1.05)';
+            btn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+        }
+
+        function renderSharedWith() {
+            const container = $('shared-with');
+            sharedMode = false;
+            container.innerHTML = `<button onclick="toggleShareAll()" id="share-all-btn" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-100 text-surface-500 border border-surface-200 hover:bg-surface-200 transition-all">Solo esta persona</button>` +
+                `<button onclick="toggleShareEveryone()" id="share-everyone-btn" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-50 text-surface-400 border border-surface-200 hover:bg-green-50 hover:text-green-600 hover:border-green-200 transition-all">🌍 Todos</button>` +
+                people.filter(p => p.id !== selectedPersonId).map(p => {
+                    return `<button onclick="toggleShare(this,'${p.id}')" data-pid="${p.id}" class="share-pill px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-50 text-surface-400 border border-surface-200 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 transition-all">${p.name}</button>`;
+                }).join('');
+        }
+
+        function toggleShare(btn, pid) {
+            btn.classList.toggle('bg-brand-100');
+            btn.classList.toggle('text-brand-700');
+            btn.classList.toggle('border-brand-300');
+            btn.classList.toggle('bg-surface-50');
+            btn.classList.toggle('text-surface-400');
+            btn.classList.toggle('border-surface-200');
+        }
+
+        function toggleShareEveryone() {
+            const btn = $('share-everyone-btn');
+            const everyoneSelected = btn.classList.contains('bg-green-100');
+            if (everyoneSelected) {
+                btn.classList.remove('bg-green-100','text-green-700','border-green-300');
+                btn.classList.add('bg-surface-50','text-surface-400','border-surface-200');
+                document.querySelectorAll('.share-pill').forEach(b => {
+                    b.classList.remove('bg-brand-100','text-brand-700','border-brand-300');
+                    b.classList.add('bg-surface-50','text-surface-400','border-surface-200');
+                });
+            } else {
+                btn.classList.add('bg-green-100','text-green-700','border-green-300');
+                btn.classList.remove('bg-surface-50','text-surface-400','border-surface-200');
+                document.querySelectorAll('.share-pill').forEach(b => {
+                    b.classList.add('bg-brand-100','text-brand-700','border-brand-300');
+                    b.classList.remove('bg-surface-50','text-surface-400','border-surface-200');
+                });
+            }
+        }
+
+        function getSharedPeople() {
+            const shared = [selectedPersonId];
+            const everyoneBtn = $('share-everyone-btn');
+            if (everyoneBtn && everyoneBtn.classList.contains('bg-green-100')) {
+                return people.map(p => p.id);
+            }
+            document.querySelectorAll('.share-pill').forEach(btn => {
+                if (btn.classList.contains('bg-brand-100')) shared.push(btn.dataset.pid);
+            });
+            return shared;
+        }
+
+        function addDrinkToAll(name, price) {
+            if (people.length === 0) { showToast('Añade personas primero'); return; }
+            const added = [];
+            people.forEach(person => {
+                const item = { id: uid(), name, price, qty: 1, category: 'drink', sharedWith: [person.id], total: price };
+                person.items.push(item);
+                added.push({ person, item });
+            });
+            renderPersonItems();
+            showToast(`${name} añadida a ${added.length} personas (€${(price * added.length).toFixed(2)} total)`);
+            showUndo(`${name} añadida a ${added.length} personas`, () => {
+                added.forEach(({ person, item }) => { person.items = person.items.filter(i => i.id !== item.id); });
+                renderPersonItems();
+                showToast(name + ' eliminada de todos');
+            });
+        }
+
+        function promptDrinkToAll() {
+            const name = prompt('Nombre de la bebida:', 'Cerveza artesana');
+            if (!name) return;
+            const priceStr = prompt('Precio por unidad (€):', '3.00');
+            const price = parseFloat(priceStr);
+            if (!price || price <= 0) { showToast('Precio no válido'); return; }
+            addDrinkToAll(name, price);
+        }
+
+        function toggleDidntEat() {
+            const person = people.find(p => p.id === selectedPersonId);
+            person.didntEat = !person.didntEat;
+            const btn = $('didnt-eat-btn');
+            const dot = $('didnt-eat-dot');
+            if (person.didntEat) {
+                btn.classList.remove('bg-orange-200');
+                btn.classList.add('bg-orange-500');
+                dot.style.transform = 'translateX(24px)';
+            } else {
+                btn.classList.add('bg-orange-200');
+                btn.classList.remove('bg-orange-500');
+                dot.style.transform = 'translateX(0)';
+            }
+        }
+
+        function addItem() {
+            if (!selectedPersonId) { showToast('Selecciona una persona'); return; }
+            const name = $('item-name').value.trim();
+            const price = parseFloat($('item-price').value);
+            const qty = parseInt($('item-qty').value) || 1;
+            if (!name) { showToast('Escribe el nombre del producto'); return; }
+            if (!price || price <= 0) { showToast('Indica un precio válido'); return; }
+
+            const sharedWith = getSharedPeople();
+            const person = people.find(p => p.id === selectedPersonId);
+            const newItem = { id: uid(), name, price, qty, category: selectedCategory, sharedWith, total: price * qty };
+            person.items.push(newItem);
+
+            $('item-name').value = '';
+            $('item-price').value = '';
+            $('item-qty').value = '1';
+            renderPersonItems();
+            showToast(name + ' añadido(a)');
+            showUndo(name + ' añadido(a) a ' + person.name, () => {
+                person.items = person.items.filter(i => i.id !== newItem.id);
+                renderPersonItems();
+                showToast(name + ' eliminado(a)');
+            });
+        }
+
+        function quickAddItem(name, price, category) {
+            if (!selectedPersonId) { showToast('Selecciona una persona primero'); return; }
+            const person = people.find(p => p.id === selectedPersonId);
+            const newItem = { id: uid(), name, price, qty: 1, category, sharedWith: [selectedPersonId], total: price };
+            person.items.push(newItem);
+            renderPersonItems();
+            showToast(name + ' añadido(a)');
+            showUndo(name + ' añadido(a) a ' + person.name, () => {
+                person.items = person.items.filter(i => i.id !== newItem.id);
+                renderPersonItems();
+                showToast(name + ' eliminado(a)');
+            });
+        }
+
+        function removeItem(personId, itemId) {
+            const person = people.find(p => p.id === personId);
+            person.items = person.items.filter(i => i.id !== itemId);
+            renderPersonItems();
+        }
+
+        function renderPersonItems() {
+            const person = people.find(p => p.id === selectedPersonId);
+            if (!person) return;
+            const total = person.items.reduce((s, it) => s + it.price * it.qty, 0);
+            $('person-total-badge').textContent = 'Total: ' + fmt(total);
+
+            if (person.items.length === 0) {
+                $('person-items').innerHTML = '';
+                return;
+            }
+
+            $('person-items').innerHTML = '<p class="text-xs font-semibold text-surface-400 px-1">Productos de ' + person.name + '</p>' +
+                person.items.map(it => {
+                    const catClass = it.category === 'drink' ? 'tag-drink' : it.category === 'food' ? 'tag-food' : 'tag-other';
+                    const catLabel = it.category === 'drink' ? 'Bebida' : it.category === 'food' ? 'Comida' : 'Otro';
+                    const sharedNames = it.sharedWith.map(sid => { const pp = people.find(p => p.id === sid); return pp ? pp.name : ''; }).filter(Boolean);
+                    return `<div class="flex items-center gap-3 bg-white rounded-xl border border-surface-100 p-3 shadow-sm scale-in">
+                        <span class="px-2 py-1 rounded-md text-white text-[10px] font-bold ${catClass}">${catLabel}</span>
+                        <div class="flex-1 min-w-0">
+                            <p class="font-medium text-surface-900 text-sm truncate">${it.name} ${it.qty > 1 ? '×'+it.qty : ''}</p>
+                            <p class="text-[11px] text-surface-400">${fmt(it.price)}${it.qty > 1 ? ' c/u' : ''} ${it.sharedWith.length > 1 ? '· Compartido con: ' + sharedNames.join(', ') : ''}</p>
+                        </div>
+                        <p class="font-bold text-surface-900 text-sm">${fmt(it.total)}</p>
+                        <button onclick="removeItem('${person.id}','${it.id}')" title="Quitar producto" aria-label="Quitar ${it.name}"
+                            class="item-delete-btn w-9 h-9 rounded-xl flex items-center justify-center bg-red-50 text-red-400 border border-red-100 hover:text-red-500 hover:bg-red-100 transition-all flex-shrink-0 active:scale-90">
+                            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14M10 11v6M14 11v6"/></svg>
+                        </button>
+                    </div>`;
+                }).join('');
+        }
+
+        // ── RESULTS ──
+        function renderResults() {
+            // Totals
+            let totalAll = 0, totalDrinks = 0, totalFood = 0;
+            people.forEach(p => p.items.forEach(it => {
+                totalAll += it.total;
+                if (it.category === 'drink') totalDrinks += it.total;
+                if (it.category === 'food') totalFood += it.total;
+            }));
+            $('res-total').textContent = fmt(totalAll);
+            $('res-people').textContent = people.length;
+            $('res-drinks').textContent = fmt(totalDrinks);
+            $('res-food').textContent = fmt(totalFood);
+
+            // Per person breakdown
+            const personTotals = {};
+            people.forEach(p => { personTotals[p.id] = 0; });
+
+            // Calculate shares
+            people.forEach(person => {
+                person.items.forEach(item => {
+                    const shareCount = item.sharedWith.length;
+                    const shareAmount = item.total / shareCount;
+                    item.sharedWith.forEach(sid => {
+                        if (personTotals[sid] !== undefined) personTotals[sid] += shareAmount;
+                    });
+                });
+            });
+
+            // Food shared cost excluding people who didn't eat
+            const foodSharedItems = [];
+            people.forEach(person => {
+                person.items.forEach(item => {
+                    if (item.category === 'food' && item.sharedWith.length > 1) {
+                        foodSharedItems.push(item);
+                    }
+                });
+            });
+
+            // Render person cards
+            const maxTotal = Math.max(...Object.values(personTotals), 1);
+            $('results-list').innerHTML = people.map((p, i) => {
+                const color = getAvatarColor(i);
+                const total = personTotals[p.id] || 0;
+                const barWidth = (total / maxTotal) * 100;
+                return `<div class="bg-white rounded-2xl border border-surface-100 p-4 shadow-sm card-hover slide-up">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style="background:${color}">${p.name.charAt(0)}</div>
+                        <div class="flex-1">
+                            <p class="font-semibold text-surface-900 text-sm">${p.name} ${p.didntEat ? '<span class="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full ml-1">No comió</span>' : ''}</p>
+                            <p class="text-xs text-surface-400">${p.items.length} producto(s)</p>
+                        </div>
+                        <p class="text-xl font-bold text-surface-900">${fmt(total)}</p>
+                    </div>
+                    <div class="w-full bg-surface-100 rounded-full h-2 mb-2">
+                        <div class="h-2 rounded-full transition-all duration-700" style="width:${barWidth}%;background:${color}"></div>
+                    </div>
+                    <div class="flex flex-wrap gap-1 mt-2">
+                        ${p.items.map(it => `<span class="text-[10px] px-2 py-0.5 rounded-full ${it.category === 'drink' ? 'bg-cyan-50 text-cyan-600' : it.category === 'food' ? 'bg-orange-50 text-orange-600' : 'bg-purple-50 text-purple-600'}">${it.name} ${fmt(it.total)}</span>`).join('')}
+                    </div>
+                </div>`;
+            }).join('');
+
+            // Calculate optimal transfers (simplified greedy algorithm)
+            const balances = people.map((p, i) => ({ id: p.id, name: p.name, balance: personTotals[p.id] || 0, color: getAvatarColor(i) }));
+            const avg = totalAll / people.length;
+            balances.forEach(b => { b.balance -= avg; }); // negative = overpaid, positive = owes
+
+            const debtors = balances.filter(b => b.balance < -0.01).sort((a, b) => a.balance - b.balance);
+            const creditors = balances.filter(b => b.balance > 0.01).sort((a, b) => b.balance - a.balance);
+
+            const transfers = [];
+            let di = 0, ci = 0;
+            while (di < debtors.length && ci < creditors.length) {
+                const amount = Math.min(Math.abs(debtors[di].balance), creditors[ci].balance);
+                if (amount > 0.01) {
+                    transfers.push({ from: debtors[di], to: creditors[ci], amount });
+                }
+                debtors[di].balance += amount;
+                creditors[ci].balance -= amount;
+                if (Math.abs(debtors[di].balance) < 0.01) di++;
+                if (creditors[ci].balance < 0.01) ci++;
+            }
+
+            if (transfers.length === 0 && people.length > 0) {
+                $('transfers-list').innerHTML = '<p class="text-sm text-green-600 text-center py-3">✨ ¡Todos están en paz! No hay transferencias pendientes.</p>';
+            } else {
+                $('transfers-list').innerHTML = transfers.map(t => `
+                    <div class="flex items-center gap-3 p-3 rounded-xl bg-surface-50 border border-surface-100">
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold" style="background:${t.from.color}">${t.from.name.charAt(0)}</div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-surface-900 truncate"><strong>${t.from.name}</strong> paga a <strong>${t.to.name}</strong></p>
+                        </div>
+                        <div class="text-right flex-shrink-0">
+                            <p class="text-lg font-bold text-green-600">${fmt(t.amount)}</p>
+                        </div>
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold" style="background:${t.to.color}">${t.to.name.charAt(0)}</div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // ── RESET ──
+        function resetAll() {
+            if (!confirm('¿Estás seguro de que quieres empezar una nueva sesión? Se borrarán todos los datos.')) return;
+            people = [];
+            selectedPersonId = null;
+            renderPeople();
+            goToStep(1);
+            showToast('Sesión reiniciada');
+        }
+
+        // ── INIT ──
+        selectCategory('drink');
+        renderPeople();
+    </script>
+</body>
+</html>
