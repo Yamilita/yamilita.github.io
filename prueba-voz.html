@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Prueba de voz</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #f5f5f7;
+    margin: 0;
+    padding: 24px 16px;
+    padding-top: env(safe-area-inset-top, 24px);
+    text-align: center;
+  }
+  h1 { font-size: 20px; margin-bottom: 8px; }
+  p.sub { color: #666; font-size: 14px; margin-bottom: 32px; }
+  #mic-btn {
+    width: 90px; height: 90px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, #d946ef, #ec4899);
+    color: white;
+    font-size: 32px;
+    box-shadow: 0 8px 24px rgba(217,70,239,0.35);
+    transition: all 0.15s;
+  }
+  #mic-btn:active { transform: scale(0.92); }
+  #mic-btn.listening {
+    background: linear-gradient(135deg, #ef4444, #f97316);
+    animation: pulse 1.2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+    50% { box-shadow: 0 0 0 16px rgba(239,68,68,0); }
+  }
+  #status { margin-top: 16px; font-size: 13px; color: #999; min-height: 18px; }
+  #result-box {
+    margin-top: 24px;
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    min-height: 80px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    text-align: left;
+  }
+  #result-box .label { font-size: 11px; text-transform: uppercase; color: #aaa; font-weight: 600; letter-spacing: 0.03em; }
+  #result-text { font-size: 17px; margin-top: 6px; color: #111; min-height: 24px; }
+  #log { margin-top: 20px; text-align: left; font-size: 12px; color: #999; }
+  #log div { padding: 4px 0; border-bottom: 1px solid #eee; }
+  #support-warning {
+    display: none;
+    background: #fff3cd;
+    color: #856404;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+</style>
+</head>
+<body>
+
+  <h1>🎤 Prueba de reconocimiento de voz</h1>
+  <p class="sub">Solo para comprobar si Safari lo soporta bien en tu iPhone.<br>No hace nada más, solo transcribe.</p>
+
+  <div id="support-warning">⚠️ Este navegador no soporta reconocimiento de voz nativo.</div>
+
+  <button id="mic-btn">🎤</button>
+  <div id="status">Toca el micrófono y habla</div>
+
+  <div id="result-box">
+    <div class="label">Última transcripción</div>
+    <div id="result-text">—</div>
+  </div>
+
+  <div id="log"></div>
+
+<script>
+  const btn = document.getElementById('mic-btn');
+  const status = document.getElementById('status');
+  const resultText = document.getElementById('result-text');
+  const log = document.getElementById('log');
+  const warning = document.getElementById('support-warning');
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (!SpeechRecognition) {
+    warning.style.display = 'block';
+    btn.disabled = true;
+    status.textContent = 'No disponible en este navegador';
+  } else {
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'es-ES';
+    recognition.continuous = false;
+    recognition.interimResults = true;
+
+    let listening = false;
+
+    btn.addEventListener('click', () => {
+      if (listening) {
+        recognition.stop();
+        return;
+      }
+      try {
+        recognition.start();
+      } catch (e) {
+        addLog('Error al iniciar: ' + e.message);
+      }
+    });
+
+    recognition.onstart = () => {
+      listening = true;
+      btn.classList.add('listening');
+      status.textContent = 'Escuchando...';
+    };
+
+    recognition.onresult = (event) => {
+      let transcript = '';
+      for (let i = 0; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      resultText.textContent = transcript;
+    };
+
+    recognition.onerror = (event) => {
+      addLog('Error: ' + event.error);
+      status.textContent = 'Error: ' + event.error;
+    };
+
+    recognition.onend = () => {
+      listening = false;
+      btn.classList.remove('listening');
+      status.textContent = 'Toca el micrófono y habla';
+      if (resultText.textContent !== '—' && resultText.textContent !== '') {
+        addLog(resultText.textContent);
+      }
+    };
+
+    function addLog(text) {
+      const time = new Date().toLocaleTimeString();
+      const entry = document.createElement('div');
+      entry.textContent = `[${time}] ${text}`;
+      log.prepend(entry);
+    }
+  }
+</script>
+
+</body>
+</html>
